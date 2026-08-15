@@ -127,9 +127,15 @@ const kindColor = {
   SECRET: "text-[#00F0FF] border-[#00F0FF]/60",
 };
 
+const kindGlow = {
+  MAIN: "#FFB000", SUPPORT: "#00F0FF", MICRO: "#EAEAEA",
+  CHALLENGE: "#FF2A2A", BOSS: "#FF2A2A", SECRET: "#00F0FF",
+};
+
 export function QuestCard({ q, onComplete, dense = false }) {
   const [busy, setBusy] = useState(false);
   const done = q.status === "COMPLETED";
+  const glow = kindGlow[q.kind] || "#00F0FF";
   useEffect(() => {
     if (q.kind === "SECRET" && !done) sound.secretQuest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -141,15 +147,28 @@ export function QuestCard({ q, onComplete, dense = false }) {
   };
   return (
     <div className={`hud-panel p-4 relative ${done ? "opacity-40" : ""} transition-all duration-200 hover:-translate-y-0.5 hover:border-[#00F0FF]/50`} data-testid={`quest-card-${q.id}`}>
-      <div className="flex items-center gap-2 mb-2 font-mono text-[9px] tracking-[0.3em]">
+      <div className="flex items-start gap-3 mb-2">
         {QUEST_ART[q.kind] && (
-          <AxiomArt src={QUEST_ART[q.kind]} alt={q.kind} className="w-6 h-6 rounded-sm flex-shrink-0 opacity-90" />
+          <div
+            className="w-16 h-16 relative flex-shrink-0 clip-tech border overflow-hidden bg-black/60"
+            style={{
+              borderColor: `${glow}66`,
+              boxShadow: done ? "none" : `0 0 14px ${glow}44, inset 0 0 18px ${glow}22`,
+            }}
+          >
+            <AxiomArt src={QUEST_ART[q.kind]} alt={q.kind} className="absolute inset-0 w-full h-full" fit="cover" />
+            <div className="absolute inset-0 pointer-events-none" style={{background: `radial-gradient(circle at 50% 40%, transparent 40%, ${glow}22 100%)`}}/>
+          </div>
         )}
-        <span className={`px-2 py-0.5 border ${kindColor[q.kind] || ""} clip-tech`}>{q.kind}</span>
-        <span className="text-[#8A8A93]">{q.difficulty}</span>
-        <span className="text-[#8A8A93] ml-auto flex items-center gap-1"><Clock size={11} strokeWidth={1.5}/>{q.duration_min}m</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 font-mono text-[9px] tracking-[0.3em] flex-wrap">
+            <span className={`px-2 py-0.5 border ${kindColor[q.kind] || ""} clip-tech`}>{q.kind}</span>
+            <span className="text-[#8A8A93]">{q.difficulty}</span>
+            <span className="text-[#8A8A93] ml-auto flex items-center gap-1"><Clock size={11} strokeWidth={1.5}/>{q.duration_min}m</span>
+          </div>
+          <h3 className="font-heading text-lg text-[#EAEAEA] mt-1 uppercase tracking-wide">{q.title}</h3>
+        </div>
       </div>
-      <h3 className="font-heading text-lg text-[#EAEAEA] mb-1 uppercase tracking-wide">{q.title}</h3>
       {!dense && <p className="font-heading text-sm text-[#8A8A93] mb-3">{q.description}</p>}
       <div className="flex items-center gap-3 mt-3 flex-wrap">
         <div className="font-mono text-xs">

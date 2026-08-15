@@ -10,5 +10,5 @@ export const RANK_PALETTES = {
   S:   { primary: "#FF7A2A", accent: "#FFB000", tertiary: "#FFDF7A", bloom: 1.35 },
   SS:  { primary: "#C400FF", accent: "#FF2A2A", tertiary: "#FFB000", bloom: 1.5 },
   SSS: { primary: "#FF2A2A", accent: "#FFB000", tertiary: "#C400FF", bloom: 1.7 },
-  "104": { primary: "#FFFFFF", accent: "#FFB000", tertiary: "#00F0FF", bloom: 2.0 },
+  "???": { primary: "#FFFFFF", accent: "#FFB000", tertiary: "#00F0FF", bloom: 2.0 },
 };

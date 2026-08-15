@@ -16,7 +16,7 @@ const RANKS = [
   { code: "S", name: "MASTER", min: 73, max: 86, color: "#FFB000" },
   { code: "SS", name: "LEGEND", min: 87, max: 96, color: "#FF2A2A" },
   { code: "SSS", name: "MONARCH", min: 97, max: 103, color: "#FF2A2A" },
-  { code: "104", name: "SUPREME MONARCH", min: 104, max: 104, color: "#FF2A2A" },
+  { code: "???", name: "SUPREME MONARCH", min: 104, max: 104, color: "#FF2A2A" },
 ];
 
 const Tower = ({ position, unlocked, height, color, code }) => {

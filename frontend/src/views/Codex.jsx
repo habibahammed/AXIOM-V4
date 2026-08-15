@@ -4,7 +4,7 @@ import { BookOpen, Crown, Skull, Zap, Trophy, Network, BrainCircuit } from "luci
 const RANKS = [
   ["E","SPARK",1,10],["D","RISER",11,22],["C","WARRIOR",23,38],["B","HUNTER",39,55],
   ["A","ELITE",56,72],["S","MASTER",73,86],["SS","LEGEND",87,96],["SSS","MONARCH",97,103],
-  ["104","SUPREME MONARCH",104,104],
+  ["???","SUPREME MONARCH",104,104],
 ];
 
 const XP_TABLE = [

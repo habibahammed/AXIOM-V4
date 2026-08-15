@@ -10,7 +10,7 @@ const StatCard = ({ k, v, max = 100 }) => (
   <TiltCard glowColor="#00F0FF" tiltStrength={7}>
     <div className="hud-panel p-4 relative overflow-hidden">
       {STAT_ART[k] && (
-        <AxiomArt src={STAT_ART[k]} alt={k} className="absolute -right-3 -top-3 w-16 h-16 opacity-25 pointer-events-none" fit="contain" />
+        <AxiomArt src={STAT_ART[k]} alt={k} className="absolute -right-2 -top-2 w-20 h-20 opacity-45 pointer-events-none" fit="contain" style={{filter: "drop-shadow(0 0 10px rgba(0,240,255,0.5))"}} />
       )}
       <div className="font-mono text-[10px] tracking-[0.3em] text-[#8A8A93] relative">{k}</div>
       <div className="font-display text-3xl text-[#EAEAEA] text-glow-cyan relative" data-testid={`evo-stat-${k}`}>{v}</div>
@@ -74,8 +74,12 @@ export default function PlayerEvolution() {
                     initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}
                   >
                     {DOMAIN_ART[k] && (
-                      <TiltCard glowColor="#FFB000" tiltStrength={14} sparkleRadius={14} className="w-7 h-7 flex-shrink-0" idleRotate>
-                        <AxiomArt src={DOMAIN_ART[k]} alt={k} className="w-7 h-7 rounded-full opacity-90" />
+                      <TiltCard glowColor="#FFB000" tiltStrength={14} sparkleRadius={22} className="w-14 h-14 flex-shrink-0" idleRotate>
+                        <div className="w-14 h-14 relative clip-tech border border-[#FFB000]/60 bg-black/60 overflow-hidden"
+                             style={{boxShadow: "0 0 14px rgba(255,176,0,0.35), inset 0 0 14px rgba(255,176,0,0.15)"}}>
+                          <AxiomArt src={DOMAIN_ART[k]} alt={k} className="absolute inset-0 w-full h-full" fit="cover" />
+                          <div className="absolute inset-0 pointer-events-none" style={{background: "radial-gradient(circle at 50% 40%, transparent 40%, rgba(255,176,0,0.22) 100%)"}}/>
+                        </div>
                       </TiltCard>
                     )}
                     <div className="flex-1">

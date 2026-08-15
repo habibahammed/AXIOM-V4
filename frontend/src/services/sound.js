@@ -343,7 +343,7 @@ class SoundEngine {
 
   // ---- rank/ascension extras (unchanged behaviour, kept here) -----------
   rankChime(rankCode = "E") {
-    const notes = { E: 440, D: 494, C: 523, B: 587, A: 659, S: 740, SS: 880, SSS: 988, "104": 1109 };
+    const notes = { E: 440, D: 494, C: 523, B: 587, A: 659, S: 740, SS: 880, SSS: 988, "???": 1109 };
     const base = notes[rankCode] || 440;
     this._tone({ freq: base, dur: 0.5, type: "triangle", gain: 0.18 });
     this._tone({ freq: base * 1.5, dur: 0.5, type: "sine", gain: 0.12, delay: 0.1 });

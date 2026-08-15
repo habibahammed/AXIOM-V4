@@ -105,13 +105,15 @@ export default function ArchitectPage() {
           the same intensity for the /architect route. */}
       <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 relative clip-tech border border-[#00F0FF]/40 overflow-hidden flex-shrink-0" style={{background:"rgba(0,240,255,0.05)"}}>
-            <AxiomArt src={ARCHITECT_ART[architectState]} alt="The Architect" eager className="absolute inset-0 w-full h-full opacity-90" />
+          <div className="w-24 h-24 relative clip-tech border border-[#00F0FF]/60 overflow-hidden flex-shrink-0"
+               style={{background:"rgba(0,240,255,0.06)", boxShadow: "0 0 22px rgba(0,240,255,0.45), inset 0 0 22px rgba(0,240,255,0.18)"}}>
+            <AxiomArt src={ARCHITECT_ART[architectState]} alt="The Architect" eager className="absolute inset-0 w-full h-full" fit="cover" />
+            <div className="absolute inset-0 pointer-events-none" style={{background: "radial-gradient(circle at 50% 40%, transparent 45%, rgba(0,240,255,0.28) 100%)"}}/>
           </div>
           <div>
             <div className="font-mono text-[10px] tracking-[0.5em] text-[#00F0FF] text-glow-cyan">// AXIOM ARCHITECT</div>
             <h1 className="font-display text-3xl text-[#EAEAEA] text-glow-cyan mt-1">STRATEGIC CHANNEL</h1>
-            <div className="font-mono text-[10px] text-[#8A8A93] tracking-[0.25em] mt-1">MODEL: GPT 5.6 TERRA · SECURE LINK</div>
+            <div className="font-mono text-[10px] text-[#8A8A93] tracking-[0.25em] mt-1">MODEL: GEMMA 4 · FREE LINK</div>
           </div>
         </div>
         <div className="flex items-center gap-2">

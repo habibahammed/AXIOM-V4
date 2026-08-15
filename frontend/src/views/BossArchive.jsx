@@ -36,13 +36,15 @@ export default function BossArchive() {
               transition={{ duration: 0.4, delay: Math.min(idx * 0.05, 0.4), ease: [0.16, 1, 0.3, 1] }}
             >
               <div className="flex items-start gap-3">
-                <TiltCard glowColor={defeated ? "#FFB000" : "#FF2A2A"} tiltStrength={8} sparkleRadius={24} className="w-14 h-14 flex-shrink-0">
-                  <div className={`w-14 h-14 relative flex items-center justify-center clip-tech border overflow-hidden ${defeated ? "border-[#FFB000]/60 text-[#FFB000]" : "border-[#FF2A2A]/60 text-[#FF2A2A]"} bg-black/50`}>
+                <TiltCard glowColor={defeated ? "#FFB000" : "#FF2A2A"} tiltStrength={10} sparkleRadius={28} className="w-20 h-20 flex-shrink-0">
+                  <div className={`w-20 h-20 relative flex items-center justify-center clip-tech border overflow-hidden ${defeated ? "border-[#FFB000]/70 text-[#FFB000]" : "border-[#FF2A2A]/70 text-[#FF2A2A]"} bg-black/60`}
+                       style={{boxShadow: defeated ? "0 0 18px rgba(255,176,0,0.4), inset 0 0 18px rgba(255,176,0,0.18)" : "0 0 18px rgba(255,42,42,0.45), inset 0 0 18px rgba(255,42,42,0.2)"}}>
                     {BOSS_ART[b.boss_key] && (
-                      <AxiomArt src={BOSS_ART[b.boss_key]} alt={b.name} className={`absolute inset-0 w-full h-full ${defeated ? "opacity-50 grayscale" : "opacity-90"}`} />
+                      <AxiomArt src={BOSS_ART[b.boss_key]} alt={b.name} className={`absolute inset-0 w-full h-full ${defeated ? "opacity-55 grayscale" : "opacity-95"}`} />
                     )}
-                    <span className="relative z-10" style={{textShadow: "0 0 6px #000, 0 0 10px #000"}}>
-                      {defeated ? <Trophy size={22} strokeWidth={1.5}/> : <Skull size={22} strokeWidth={1.5}/>}
+                    <div className="absolute inset-0 pointer-events-none" style={{background: defeated ? "radial-gradient(circle at 50% 40%, transparent 45%, rgba(255,176,0,0.22) 100%)" : "radial-gradient(circle at 50% 40%, transparent 45%, rgba(255,42,42,0.28) 100%)"}}/>
+                    <span className="relative z-10" style={{textShadow: "0 0 6px #000, 0 0 12px #000"}}>
+                      {defeated ? <Trophy size={30} strokeWidth={1.5}/> : <Skull size={30} strokeWidth={1.5}/>}
                     </span>
                   </div>
                 </TiltCard>

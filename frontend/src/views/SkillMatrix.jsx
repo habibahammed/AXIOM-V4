@@ -110,7 +110,11 @@ export default function SkillMatrix() {
             <>
               <div className="flex items-center gap-3 mb-1">
                 {SKILL_DOMAIN_ART[selected.domain] && (
-                  <AxiomArt src={SKILL_DOMAIN_ART[selected.domain]} alt={selected.domain} className="w-9 h-9 rounded-full flex-shrink-0 opacity-90" />
+                  <div className="w-16 h-16 relative flex-shrink-0 clip-tech border border-[#00F0FF]/60 bg-black/60 overflow-hidden"
+                       style={{boxShadow: "0 0 16px rgba(0,240,255,0.4), inset 0 0 16px rgba(0,240,255,0.18)"}}>
+                    <AxiomArt src={SKILL_DOMAIN_ART[selected.domain]} alt={selected.domain} className="absolute inset-0 w-full h-full" fit="cover" />
+                    <div className="absolute inset-0 pointer-events-none" style={{background: "radial-gradient(circle at 50% 40%, transparent 40%, rgba(0,240,255,0.25) 100%)"}}/>
+                  </div>
                 )}
                 <div className="font-display text-xl text-[#EAEAEA]">{selected.name.toUpperCase()}</div>
               </div>

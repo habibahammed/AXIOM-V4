@@ -15,7 +15,7 @@ export const RANK_ART = {
   S: `${base}/ranks/S.webp`,
   SS: `${base}/ranks/SS.webp`,
   SSS: `${base}/ranks/SSS.webp`,
-  "104": `${base}/ranks/SUPREME.webp`,
+  "???": `${base}/ranks/SUPREME.webp`,
 };
 
 // Architect portrait per emotional/operational state

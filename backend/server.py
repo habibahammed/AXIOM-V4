@@ -119,7 +119,7 @@ RANKS = [
     ("S", "MASTER", 73, 86),
     ("SS", "LEGEND", 87, 96),
     ("SSS", "MONARCH", 97, 103),
-    ("104", "SUPREME MONARCH", 104, 104),
+    ("???", "SUPREME MONARCH", 104, 104),
 ]
 
 def xp_required_for_level(level: int) -> int:
