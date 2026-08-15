@@ -65,6 +65,13 @@ export const QUEST_ART = {
   CHALLENGE: `${base}/quests/challenge.webp`,
   BOSS: `${base}/quests/boss.webp`,
   SECRET: `${base}/quests/secret.webp`,
+  // Extra art (non-backend kinds) — surfaced by dedicated views:
+  //   TRIAL     → Monarch Trials view
+  //   EMERGENCY → high-urgency cinematic cue (reserved)
+  //   MONARCH   → Monarch-tier quest ornament (reserved)
+  TRIAL: `${base}/quests/trial.webp`,
+  EMERGENCY: `${base}/quests/emergency.webp`,
+  MONARCH: `${base}/quests/monarch.webp`,
 };
 
 // Stat medal art — keyed by the REAL backend STATS_KEYS
