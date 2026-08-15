@@ -39,6 +39,16 @@ function readStoredVolume(key, fallback) {
   return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
 }
 
+// Category → visual-pulse color map. Only listed categories emit a pulse;
+// everything else stays purely audio. Colors come from design_guidelines.json
+// (cyan_primary #00F0FF, amber_primary #FFB000, crimson_alert_boss #FF2A2A).
+const PULSE_COLORS = {
+  xpGained:       "#FFB000", // amber flash on XP gain
+  bossEncounter:  "#FF2A2A", // crimson flash on boss alert
+  bossHit:        "#FF2A2A", // crimson flash on boss alert (damage frame)
+  rankUp:         "#00F0FF", // cyan flash on rank-up
+};
+
 class SoundEngine {
   constructor() {
     this.ctx = null;
@@ -64,6 +74,19 @@ class SoundEngine {
     // Per-category audio elements for real files, created lazily once a
     // source is registered.
     this._fileEls = {};
+
+    // Visual-pulse listener registry — any subscriber (e.g. the overlay
+    // component) receives { color, category } whenever a mapped sound plays,
+    // synced to the sound's play call (< a frame ahead of audible start).
+    this._pulseListeners = new Set();
+  }
+
+  // ---- visual pulse bus (paired with existing audio hooks) ---------------
+  onPulse(cb) { this._pulseListeners.add(cb); return () => this._pulseListeners.delete(cb); }
+  _emitPulse(category) {
+    const color = PULSE_COLORS[category];
+    if (!color) return;
+    this._pulseListeners.forEach((l) => { try { l({ color, category }); } catch {} });
   }
 
   // ---- lifecycle -----------------------------------------------------
@@ -130,6 +153,9 @@ class SoundEngine {
   // been registered, otherwise run the synth fallback.
   _play(category, synthFallback) {
     if (!this.enabled) return;
+    // Emit the paired visual pulse first so the flash is perceptibly
+    // synced with (or a hair before) the audible attack.
+    this._emitPulse(category);
     if (AUDIO_FILES[category] && this._fileEls[category]) {
       try {
         const el = this._fileEls[category];

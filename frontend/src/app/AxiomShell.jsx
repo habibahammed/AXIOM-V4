@@ -13,6 +13,8 @@ import AxiomLogo from "@/components/common/AxiomLogo";
 import AxiomArt from "@/components/common/AxiomArt";
 import TiltCard from "@/components/common/TiltCard";
 import AudioSettingsPanel from "@/components/common/AudioSettingsPanel";
+import SoundPulseOverlay from "@/components/common/SoundPulseOverlay";
+import PageBackground from "@/components/common/PageBackground";
 import { RANK_ART } from "@/services/assets/registry";
 import { AxiomScene } from "@/components/3d/AxiomScene";
 import { useMouseParallax, useAnimatedNumber, useReducedMotion } from "@/hooks/useMotion";
@@ -270,6 +272,8 @@ export default function AxiomShell() {
       <ShieldStore open={storeOpen} onClose={() => setStoreOpen(false)}/>
       <AvatarUploadModal open={avatarOpen} onClose={() => setAvatarOpen(false)}/>
       <AchievementToaster queue={achQueue} onConsume={(id) => setAchQueue(q => q.filter(a => a.id !== id))}/>
+      <PageBackground />
+      <SoundPulseOverlay />
     </div>
   );
 }
