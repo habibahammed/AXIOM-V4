@@ -239,11 +239,11 @@ export const AxiomScene = ({
         <Ring radius={4.8} tilt={-0.5} speed={-0.1} color={palette.accent} thickness={0.02}/>
         <Ring radius={6.4} tilt={0.7} speed={0.07} thickness={0.015} color={palette.primary}/>
         {dense && q.extraRing && <Ring radius={8.0} tilt={-0.2} speed={-0.05} color={palette.accent} thickness={0.01}/>}
-        <ParticleField count={dense ? q.particlesPrimary : q.particlesPrimarySparse} radius={12} color={palette.primary} size={0.05} speed={0.02}/>
-        {dense && q.particlesAccent > 0 && <ParticleField count={q.particlesAccent} radius={18} color={palette.accent} size={0.03} speed={-0.015}/>}
-        {dense && q.particlesTertiary > 0 && <ParticleField count={q.particlesTertiary} radius={22} color={palette.tertiary} size={0.02} speed={0.008}/>}
-        {dense && q.streaks > 0 && <EnergyStreaks count={q.streaks} palette={palette}/>}
-        {floating && q.floatingCount > 0 && <FloatingGeometry count={q.floatingCount} palette={palette} radius={9}/>}
+        <ParticleField key={`p1-${dense ? q.particlesPrimary : q.particlesPrimarySparse}`} count={dense ? q.particlesPrimary : q.particlesPrimarySparse} radius={12} color={palette.primary} size={0.05} speed={0.02}/>
+        {dense && q.particlesAccent > 0 && <ParticleField key={`p2-${q.particlesAccent}`} count={q.particlesAccent} radius={18} color={palette.accent} size={0.03} speed={-0.015}/>}
+        {dense && q.particlesTertiary > 0 && <ParticleField key={`p3-${q.particlesTertiary}`} count={q.particlesTertiary} radius={22} color={palette.tertiary} size={0.02} speed={0.008}/>}
+        {dense && q.streaks > 0 && <EnergyStreaks key={`s-${q.streaks}`} count={q.streaks} palette={palette}/>}
+        {floating && q.floatingCount > 0 && <FloatingGeometry key={`f-${q.floatingCount}`} count={q.floatingCount} palette={palette} radius={9}/>}
         <ambientLight intensity={dynamicLighting ? 0.35 : 0.7} />
         {dynamicLighting && <DynamicLights palette={palette} count={q.dynamicLights}/>}
       </Suspense>
