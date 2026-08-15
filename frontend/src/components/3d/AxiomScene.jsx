@@ -9,7 +9,7 @@ import { getQuality } from "@/config/quality";
 import { useAdaptiveQuality } from "@/hooks/useAdaptiveQuality";
 import { useDocumentVisible } from "@/hooks/useDocumentVisible";
 
-const ParticleField = ({ count = 1200, radius = 14, color = "#00F0FF", size = 0.05, speed = 0.02 }) => {
+const ParticleField = ({ count = 1200, radius = 14, color = "#00F0FF", size = 0.05, speed = 0.02, opacity = 0.7 }) => {
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
@@ -26,10 +26,41 @@ const ParticleField = ({ count = 1200, radius = 14, color = "#00F0FF", size = 0.
   useFrame((_, dt) => { if (ref.current) { ref.current.rotation.y += dt * speed; ref.current.rotation.x += dt * speed * 0.3; } });
   return (
     <Points ref={ref} positions={positions} stride={3}>
-      <PointMaterial transparent color={color} size={size} sizeAttenuation depthWrite={false} opacity={0.7} blending={THREE.AdditiveBlending}/>
+      <PointMaterial transparent color={color} size={size} sizeAttenuation depthWrite={false} opacity={opacity} blending={THREE.AdditiveBlending}/>
     </Points>
   );
 };
+
+// --- Atmosphere layer (obsidian/void fog + cyan rim lighting) ---------------
+// Additive only: no camera/geometry changes, respects existing scene tree.
+const OBSIDIAN = 0x050508;      // deep void tone for exponential fog
+const CYAN_GLOW = "#00F0FF";    // AXIOM cyan for rim highlights
+
+const RimLighting = () => (
+  // Two low-intensity cyan lights placed BEHIND the origin relative to the
+  // default camera at [0,0,9] — they graze the back edges of any lit object
+  // (FloatingShard etc.) to produce a subtle cyan rim without altering the
+  // scene's front-lit look. MeshBasic materials (Core/Rings) are unaffected.
+  <>
+    <directionalLight color={CYAN_GLOW} intensity={1.15} position={[0, 2.5, -9]} />
+    <directionalLight color={CYAN_GLOW} intensity={0.55} position={[-4, -1, -6]} />
+  </>
+);
+
+const DriftingBackdropParticles = ({ count = 260 }) => (
+  // Distant, slow-drifting cyan haze — sits well outside the primary particle
+  // shells (radius 40) with tiny points at very low opacity so it reads as
+  // depth/atmosphere, not foreground detail.
+  <ParticleField
+    key={`bg-${count}`}
+    count={count}
+    radius={40}
+    color={CYAN_GLOW}
+    size={0.018}
+    speed={0.004}
+    opacity={0.22}
+  />
+);
 
 const Core = ({ intensity = 1, palette }) => {
   const ref = useRef();
@@ -230,10 +261,18 @@ export const AxiomScene = ({
       // cost for nothing.
       frameloop={visible ? "always" : "never"}
     >
-      <color attach="background" args={[0x000000]} />
-      <fog attach="fog" args={[0x000000, fogNear ?? 9, fogFar ?? 26]} />
+      <color attach="background" args={[OBSIDIAN]} />
+      {/* Volumetric-feeling exponential fog in obsidian/void tone —
+          replaces the previous linear fog. Non-zero, very low density gives
+          soft depth falloff without a full volumetric shader pass. */}
+      <fogExp2 attach="fog" args={[OBSIDIAN, 0.028]} />
       {parallax && <CameraRig />}
       <Suspense fallback={null}>
+        {/* Distant, slow-drifting cyan haze — background atmosphere layer,
+            sits behind every existing particle shell and geometry. */}
+        <DriftingBackdropParticles count={q.particlesPrimarySparse ? Math.min(q.particlesPrimarySparse, 260) : 180} />
+        {/* Subtle cyan rim lighting on any lit object (FloatingShards etc.) */}
+        <RimLighting />
         {CoreEl}
         <Ring radius={3.6} tilt={0.3} speed={0.18} thickness={0.025} color={palette.primary}/>
         <Ring radius={4.8} tilt={-0.5} speed={-0.1} color={palette.accent} thickness={0.02}/>
