@@ -95,7 +95,13 @@ button:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
 /* HUD PANEL */
 .hud-panel {
   position: relative;
-  background: rgba(10, 12, 16, 0.72);
+  background:
+    /* subtle scanline overlay on panel_glass */
+    repeating-linear-gradient(0deg, rgba(0,240,255,0.025) 0px, rgba(0,240,255,0.025) 1px, transparent 2px, transparent 4px),
+    /* faint grid overlay on panel_glass */
+    linear-gradient(rgba(0,240,255,0.035) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgba(0,240,255,0.035) 1px, transparent 1px) 0 0 / 32px 32px,
+    rgba(10, 12, 16, 0.72);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(0, 240, 255, 0.18);
   box-shadow: inset 0 0 0 1px rgba(0,240,255,0.04), 0 20px 50px -30px rgba(0,240,255,0.35);
@@ -199,10 +205,38 @@ button:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
 .text-glow-red { text-shadow: 0 0 12px rgba(255,42,42,0.7), 0 0 24px rgba(255,42,42,0.3); }
 
 .hud-panel:hover {
-  border-color: rgba(0, 240, 255, 0.35);
+  border-color: rgba(0, 240, 255, 0.45);
   transform: translateY(-1px);
-  box-shadow: inset 0 0 0 1px rgba(0,240,255,0.06), 0 24px 60px -30px rgba(0,240,255,0.45);
+  /* Glass panel hover glow — inner tint uses panel_glass_hover token
+     rgba(0,240,255,0.05), layered over the existing scanline+grid+glass */
+  background:
+    repeating-linear-gradient(0deg, rgba(0,240,255,0.035) 0px, rgba(0,240,255,0.035) 1px, transparent 2px, transparent 4px),
+    linear-gradient(rgba(0,240,255,0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgba(0,240,255,0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+    rgba(0, 240, 255, 0.05),
+    rgba(10, 12, 16, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,240,255,0.10),
+    inset 0 0 40px rgba(0,240,255,0.06),
+    0 24px 60px -30px rgba(0,240,255,0.55);
 }
+
+/* Active/selected panel — animated border pulse using subtle_cyan
+   rgba(0,240,255,0.2). Add class="hud-panel-active" alongside .hud-panel. */
+@keyframes hud-border-pulse {
+  0%, 100% {
+    border-color: rgba(0, 240, 255, 0.2);
+    box-shadow: inset 0 0 0 1px rgba(0,240,255,0.08), 0 0 0 0 rgba(0,240,255,0);
+  }
+  50% {
+    border-color: rgba(0, 240, 255, 0.7);
+    box-shadow: inset 0 0 0 1px rgba(0,240,255,0.22), 0 0 24px 2px rgba(0,240,255,0.35);
+  }
+}
+.hud-panel-active {
+  animation: hud-border-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.reduced-motion .hud-panel-active { animation: none; border-color: rgba(0,240,255,0.55); }
 
 /* Card lift */
 [data-testid^="quest-card"], [data-testid^="boss-"], [data-testid^="trial-"] {
