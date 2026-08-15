@@ -12,6 +12,77 @@ import {
 } from "@/config/cinematicTiming";
 import { estimateStatGainForDisplay } from "@/engine/progressionEngine";
 
+// --- Cinematic upgrade primitives ------------------------------------------
+// Design tokens sourced verbatim from design_guidelines.json
+const CYAN_GLOW = "rgba(0, 240, 255, 0.4)";
+const CRIMSON_GLOW = "rgba(255, 42, 42, 0.4)";
+// 300ms "hold then slam" — value nearly frozen for the first half, then a
+// hard release to the target. Achieved via keyframe timing (times) so the
+// curve is deterministic across all consumers, not per-motion easing.
+const SLAM_TIMES = [0, 0.5, 1];
+const SLAM_EASE = [0.87, 0, 0.13, 1]; // fallback cubic when times aren't wanted
+
+// Impact-frame screen shake — mounts only during the burst beat, then
+// unmounts. Wrap the target with this to inherit the shake.
+const ScreenShake = ({ active, strength = 10, children }) => (
+  <motion.div
+    animate={active ? {
+      x: [0, -strength, strength * 0.8, -strength * 0.6, strength * 0.4, -strength * 0.2, 0],
+      y: [0, strength * 0.6, -strength * 0.9, strength * 0.4, -strength * 0.3, strength * 0.15, 0],
+    } : { x: 0, y: 0 }}
+    transition={{ duration: 0.45, ease: "easeOut" }}
+    className="contents"
+  >
+    {children}
+  </motion.div>
+);
+
+// Chromatic aberration burst — layered cyan_glow + crimson_glow tints that
+// briefly split apart (opposite offsets) then snap back to center, reading
+// as an RGB split without a shader.
+const ChromaticBurst = ({ active }) => {
+  if (!active) return null;
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[35] overflow-hidden">
+      <motion.div
+        initial={{ x: 0, opacity: 0 }}
+        animate={{ x: [-8, 22, -6, 0], opacity: [0, 0.85, 0.4, 0] }}
+        transition={{ duration: 0.42, times: [0, 0.25, 0.6, 1], ease: [0.2, 0.9, 0.3, 1] }}
+        className="absolute inset-0"
+        style={{ background: `radial-gradient(circle at 50% 50%, ${CYAN_GLOW} 0%, transparent 55%)`, mixBlendMode: "screen" }}
+      />
+      <motion.div
+        initial={{ x: 0, opacity: 0 }}
+        animate={{ x: [8, -22, 6, 0], opacity: [0, 0.85, 0.4, 0] }}
+        transition={{ duration: 0.42, times: [0, 0.25, 0.6, 1], ease: [0.2, 0.9, 0.3, 1] }}
+        className="absolute inset-0"
+        style={{ background: `radial-gradient(circle at 50% 50%, ${CRIMSON_GLOW} 0%, transparent 55%)`, mixBlendMode: "screen" }}
+      />
+    </div>
+  );
+};
+
+// Radial light burst that sits BEHIND the rank/level Michroma text — a
+// static, layered aura that expands as the number lands. Two rings for depth.
+const RadialLightBurst = ({ color = "#FFB000", accent = CYAN_GLOW, size = 640 }) => (
+  <div className="pointer-events-none absolute inset-0 flex items-center justify-center -z-10">
+    <motion.div
+      initial={{ scale: 0.35, opacity: 0 }}
+      animate={{ scale: [0.35, 0.55, 1.05], opacity: [0, 0.95, 0.75] }}
+      transition={{ duration: 0.6, times: SLAM_TIMES, ease: SLAM_EASE }}
+      className="rounded-full"
+      style={{ width: size, height: size, background: `radial-gradient(circle, ${color} 0%, transparent 55%)`, filter: "blur(28px)" }}
+    />
+    <motion.div
+      initial={{ scale: 0.2, opacity: 0 }}
+      animate={{ scale: [0.2, 0.4, 1.2], opacity: [0, 0.7, 0.55] }}
+      transition={{ duration: 0.65, times: SLAM_TIMES, ease: SLAM_EASE }}
+      className="absolute rounded-full"
+      style={{ width: size * 0.7, height: size * 0.7, background: `radial-gradient(circle, ${accent} 0%, transparent 60%)`, filter: "blur(18px)", mixBlendMode: "screen" }}
+    />
+  </div>
+);
+
 // Particle burst radiating outward
 const Burst = ({ count = 30, color = "#00F0FF" }) => (
   <div className="pointer-events-none absolute inset-0">
@@ -234,7 +305,8 @@ const LevelUpStage = ({ event, reducedMotion = false }) => {
       {/* 4. ENERGY CONVERGENCE — everything rapidly gathers to a single point */}
       {stage === "convergence" && <EnergyConvergence color={tint} count={20}/>}
 
-      {/* 5. SHOCKWAVE — the release */}
+      {/* 5. SHOCKWAVE — the release + chromatic aberration + screen shake */}
+      <ChromaticBurst active={stage === "burst"} />
       {stage === "burst" && (
         <>
           <div className="shockwave" style={{"--tint": tint}}/>
@@ -262,7 +334,10 @@ const LevelUpStage = ({ event, reducedMotion = false }) => {
 
       {/* 6/7/8. REVEAL — LEVEL UP, new level, stat changes, rewards */}
       {atOrAfter("reveal") && (
+        <ScreenShake active={stage === "reveal"} strength={8}>
         <div className="text-center relative z-10 stage-emerge">
+          {/* Radial light burst sitting behind the Michroma numeral */}
+          <RadialLightBurst color={tint} accent={isRank ? CYAN_GLOW : CRIMSON_GLOW} size={isRank ? 700 : 560} />
           {/* Faded AXIOM Core / rank sigil art anchoring the moment */}
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
@@ -280,17 +355,29 @@ const LevelUpStage = ({ event, reducedMotion = false }) => {
           {isRank ? (
             <>
               <div className="font-mono text-xs md:text-sm tracking-[0.7em] text-[#FFB000] mb-4 text-glow-amber">// RANK ASCENSION //</div>
-              <div className="font-display text-8xl md:text-[10rem] text-[#FFB000] leading-none mb-3" style={{textShadow: "0 0 32px #FFB000, 0 0 64px rgba(255,176,0,0.5)"}}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: [0, 1, 1], scale: [0.5, 0.55, 1] }}
+                transition={{ duration: 0.55, times: SLAM_TIMES, ease: SLAM_EASE }}
+                className="font-display text-8xl md:text-[10rem] text-[#FFB000] leading-none mb-3"
+                style={{textShadow: "0 0 32px #FFB000, 0 0 64px rgba(255,176,0,0.5)"}}
+              >
                 {event.new_rank.code}
-              </div>
+              </motion.div>
               <div className="font-display text-2xl md:text-3xl tracking-[0.5em] text-[#EAEAEA] mb-6">{event.new_rank.name}</div>
             </>
           ) : (
             <>
               <div className="font-mono text-xs md:text-sm tracking-[0.7em] text-[#00F0FF] mb-4 text-glow-cyan">// LEVEL UP //</div>
-              <div className="font-display leading-none mb-4 text-[#00F0FF]" style={{fontSize: "clamp(6rem, 16vw, 12rem)", textShadow: "0 0 32px #00F0FF, 0 0 64px rgba(0,240,255,0.6)"}}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: [0, 1, 1], scale: [0.5, 0.55, 1] }}
+                transition={{ duration: 0.55, times: SLAM_TIMES, ease: SLAM_EASE }}
+                className="font-display leading-none mb-4 text-[#00F0FF]"
+                style={{fontSize: "clamp(6rem, 16vw, 12rem)", textShadow: "0 0 32px #00F0FF, 0 0 64px rgba(0,240,255,0.6)"}}
+              >
                 {event.new_level}
-              </div>
+              </motion.div>
             </>
           )}
 
@@ -337,6 +424,7 @@ const LevelUpStage = ({ event, reducedMotion = false }) => {
             </>
           )}
         </div>
+        </ScreenShake>
       )}
     </div>
   );
@@ -452,12 +540,12 @@ const RankAscensionStage = ({ event, reducedMotion = false }) => {
       style={{ "--tint": primary }}
       animate={{
         scale: RANK_CAMERA_SCALE[stage],
-        x: stage === "burst" ? [0, -6, 5, -3, 0] : 0,
-        y: stage === "burst" ? [0, 4, -5, 2, 0] : 0,
+        x: stage === "burst" ? [0, -14, 12, -8, 5, -3, 0] : 0,
+        y: stage === "burst" ? [0, 9, -12, 6, -4, 2, 0] : 0,
       }}
       transition={
         stage === "burst"
-          ? { scale: { duration: 0.25, ease: "easeOut" }, x: { duration: 0.4, ease: "easeOut" }, y: { duration: 0.4, ease: "easeOut" } }
+          ? { scale: { duration: 0.25, ease: "easeOut" }, x: { duration: 0.5, ease: "easeOut" }, y: { duration: 0.5, ease: "easeOut" } }
           : { duration: RANK_STAGE_DURATIONS[stage] / 1000, ease: [0.16, 1, 0.3, 1] }
       }
     >
@@ -498,6 +586,7 @@ const RankAscensionStage = ({ event, reducedMotion = false }) => {
       )}
 
       {/* LIGHT BURST / SHOCKWAVE — with camera shake handled by the wrapper above */}
+      <ChromaticBurst active={stage === "burst"} />
       {stage === "burst" && (
         <>
           <div className="shockwave" style={{"--tint": primary}}/>
@@ -535,6 +624,8 @@ const RankAscensionStage = ({ event, reducedMotion = false }) => {
       {/* RANK EMBLEM REVEAL + CINEMATIC TYPOGRAPHY */}
       {atOrAfter("reveal") && (
         <div className="text-center relative z-10 stage-emerge">
+          {/* Radial light burst behind the Michroma rank glyph */}
+          <RadialLightBurst color={primary} accent={CYAN_GLOW} size={780} />
           <motion.div
             initial={{ opacity: 0, scale: 0.6, rotate: -8 }}
             animate={{ opacity: 0.5, scale: 1, rotate: 0 }}
@@ -552,9 +643,9 @@ const RankAscensionStage = ({ event, reducedMotion = false }) => {
           >// RANK ASCENSION //</motion.div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.4, y: 30 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15, ease: "backOut" }}
+            initial={{ opacity: 0, scale: 0.45, y: 30 }}
+            animate={{ opacity: [0, 1, 1], scale: [0.45, 0.5, 1], y: [30, 26, 0] }}
+            transition={{ duration: 0.6, times: SLAM_TIMES, ease: SLAM_EASE, delay: 0.1 }}
             className="font-display text-8xl md:text-[11rem] text-[#FFB000] leading-none mb-3"
             style={{textShadow: "0 0 40px #FFB000, 0 0 90px rgba(255,176,0,0.6)"}}
           >{event.new_rank?.code}</motion.div>
