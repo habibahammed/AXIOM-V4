@@ -23,6 +23,79 @@ JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = os.environ['JWT_ALGORITHM']
 JWT_EXPIRE_HOURS = int(os.environ['JWT_EXPIRE_HOURS'])
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
+OPENROUTER_MODEL = os.environ.get('OPENROUTER_MODEL', 'google/gemma-4-26b-a4b-it:free')
+OPENROUTER_FALLBACKS = [m.strip() for m in os.environ.get('OPENROUTER_FALLBACK_MODELS', '').split(',') if m.strip()]
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+# OpenRouter streaming client (free Gemma model, no Universal Key cost)
+import httpx as _httpx
+
+async def _openrouter_stream_one(model: str, system_message: str, user_text: str):
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_text},
+        ],
+        "stream": True,
+        "temperature": 0.6,
+        "max_tokens": 2048,
+    }
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://axiom.emergent.local",
+        "X-Title": "AXIOM Monarch System",
+    }
+    async with _httpx.AsyncClient(timeout=120.0) as client:
+        async with client.stream("POST", OPENROUTER_URL, json=payload, headers=headers) as resp:
+            if resp.status_code != 200:
+                body = await resp.aread()
+                raise RuntimeError(f"OpenRouter {resp.status_code} on {model}: {body.decode(errors='ignore')[:300]}")
+            async for line in resp.aiter_lines():
+                if not line or not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    obj = json.loads(data)
+                    err = obj.get("error")
+                    if err:
+                        raise RuntimeError(f"OpenRouter mid-stream error on {model}: {json.dumps(err)[:300]}")
+                    delta = obj.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    if delta:
+                        yield delta
+                except json.JSONDecodeError:
+                    continue
+
+async def gemini_stream_text(system_message: str, user_text: str):
+    """Async generator yielding text deltas. Tries primary model then fallbacks on rate-limit/error."""
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY not configured")
+    models = [OPENROUTER_MODEL] + OPENROUTER_FALLBACKS
+    last_err = None
+    for m in models:
+        try:
+            got_any = False
+            async for delta in _openrouter_stream_one(m, system_message, user_text):
+                got_any = True
+                yield delta
+            if got_any:
+                return
+        except Exception as e:
+            last_err = e
+            logger.warning(f"OpenRouter model {m} failed: {e}")
+            continue
+    raise last_err or RuntimeError("All OpenRouter models failed")
+
+async def gemini_drain(system_message: str, user_text: str) -> str:
+    parts = []
+    async for delta in gemini_stream_text(system_message, user_text):
+        parts.append(delta)
+    return "".join(parts).strip()
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -546,25 +619,16 @@ async def build_player_context(player: dict) -> str:
 
 @api.post("/architect/chat")
 async def architect_chat(body: ArchitectMsgIn, player=Depends(current_player)):
-    """Streaming SSE from GPT 5.6 Terra using Emergent LLM Key."""
-    from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
-
-    session_id = f"arch-{player['id']}"
+    """Streaming SSE from Gemini 2.5 Flash (direct Google API, free tier)."""
     context = await build_player_context(player)
     system_msg = ARCHITECT_SYSTEM + "\n\nCURRENT PLAYER STATE:\n" + context
-
-    chat = (LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=system_msg)
-            .with_model("openai", "gpt-5.6-terra"))
 
     async def gen():
         collected = []
         try:
-            async for ev in chat.stream_message(UserMessage(text=body.text)):
-                if isinstance(ev, TextDelta):
-                    collected.append(ev.content)
-                    yield f"data: {json.dumps({'delta': ev.content})}\n\n"
-                elif isinstance(ev, StreamDone):
-                    break
+            async for delta in gemini_stream_text(system_msg, body.text):
+                collected.append(delta)
+                yield f"data: {json.dumps({'delta': delta})}\n\n"
         except Exception as e:
             logger.exception("architect stream failed")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -920,14 +984,14 @@ async def simulator_project(body: SimulatorIn, player=Depends(current_player)):
 # ADAPTIVE WAR ROOM — analytics + Architect verdict
 # ============================================================
 async def _drain_llm(chat, user_text: str) -> str:
-    from emergentintegrations.llm.chat import UserMessage, TextDelta, StreamDone
-    parts = []
-    async for ev in chat.stream_message(UserMessage(text=user_text)):
-        if isinstance(ev, TextDelta):
-            parts.append(ev.content)
-        elif isinstance(ev, StreamDone):
-            break
-    return "".join(parts).strip()
+    """Compatibility shim — now uses Gemini 2.5 Flash directly.
+    `chat` is a tuple (system_message, _) preserved for legacy call-sites."""
+    system_msg = chat[0] if isinstance(chat, tuple) else str(chat)
+    return await gemini_drain(system_msg, user_text)
+
+def _llm_chat(system_message: str, session_hint: str = ""):
+    """Return an opaque handle carrying the system message for _drain_llm."""
+    return (system_message, session_hint)
 
 @api.get("/analytics")
 async def analytics(player=Depends(current_player)):
@@ -991,7 +1055,6 @@ async def analytics(player=Depends(current_player)):
 
 @api.post("/analytics/verdict")
 async def analytics_verdict(player=Depends(current_player)):
-    from emergentintegrations.llm.chat import LlmChat
     a = await analytics(player=player)
     ctx = f"""Player {player['display_name']} Rank {rank_for_level(player['level'])['code']} Level {player['level']}.
 Completion rate: {int(a['completion_rate']*100)}% ({a['completed_quests']}/{a['total_quests']})
@@ -1000,9 +1063,8 @@ Drop-off domain: {a['dropoff']['domain'] if a['dropoff'] else 'none'} ({int((a['
 Difficulty distribution: {a['difficulty_counts']}
 Last 7 days XP: {[d['xp'] for d in a['daily_xp']]}
 """
-    chat = (LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"war-{player['id']}",
-                    system_message=ARCHITECT_SYSTEM + "\nOutput format: 4 lines maximum. Diagnosis then command. No preface.")
-            .with_model("openai", "gpt-5.6-terra"))
+    chat = _llm_chat(ARCHITECT_SYSTEM + "\nOutput format: 4 lines maximum. Diagnosis then command. No preface.",
+                     f"war-{player['id']}")
     try:
         text = await _drain_llm(chat, "DIAGNOSTIC REQUEST:\n" + ctx + "\nDeliver diagnosis and one difficulty tuning command.")
     except Exception as e:
@@ -1053,7 +1115,6 @@ class CampaignForgeIn(BaseModel):
 
 @api.post("/campaigns/forge")
 async def forge_campaign(body: CampaignForgeIn, player=Depends(current_player)):
-    from emergentintegrations.llm.chat import LlmChat
     if body.days < 2 or body.days > 14:
         raise HTTPException(400, "Campaign duration must be 2-14 days")
     boss = await db.bosses.find_one({"player_id": player["id"], "boss_key": body.boss_key}, {"_id": 0})
@@ -1072,9 +1133,8 @@ Each quest object schema:
   "duration_min": integer 10-90,
   "trained_stats": array of 1-3 from ["STR","AGI","INT","FOC","MEM","CHA","PER","STA"]}}
 No prose. No markdown. JSON array only."""
-    chat = (LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"lab-{player['id']}-{uuid.uuid4().hex[:6]}",
-                    system_message="You are AXIOM Campaign Forger. Output only valid JSON.")
-            .with_model("openai", "gpt-5.6-terra"))
+    chat = _llm_chat("You are AXIOM Campaign Forger. Output only valid JSON.",
+                     f"lab-{player['id']}-{uuid.uuid4().hex[:6]}")
     try:
         raw = await _drain_llm(chat, prompt)
     except Exception as e:
@@ -1153,7 +1213,6 @@ class OnboardingIn(BaseModel):
 
 @api.post("/onboarding/complete")
 async def complete_onboarding(body: OnboardingIn, player=Depends(current_player)):
-    from emergentintegrations.llm.chat import LlmChat
     if player.get("onboarded"):
         return {"already": True}
     domain = body.focus_area if body.focus_area in DOMAINS else "DISCIPLINE"
@@ -1167,9 +1226,8 @@ Output STRICT JSON array. Schema per quest:
   "duration_min": integer 5-45,
   "trained_stats": 1-2 from ["STR","AGI","INT","FOC","MEM","CHA","PER","STA"]}}
 Order: MAIN, SUPPORT, MICRO. No prose. JSON only."""
-    chat = (LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"onb-{player['id']}",
-                    system_message="You are AXIOM Onboarding Forger. Output only valid JSON.")
-            .with_model("openai", "gpt-5.6-terra"))
+    chat = _llm_chat("You are AXIOM Onboarding Forger. Output only valid JSON.",
+                     f"onb-{player['id']}")
     docs = []
     try:
         raw = await _drain_llm(chat, prompt)
@@ -1245,7 +1303,6 @@ async def boss_dossier(boss_key: str, player=Depends(current_player)):
 
 @api.post("/bosses/{boss_key}/strategy")
 async def boss_strategy(boss_key: str, player=Depends(current_player)):
-    from emergentintegrations.llm.chat import LlmChat
     d = await boss_dossier(boss_key, player=player)
     b = d["boss"]
     ctx = f"""BOSS: {b['name']}
@@ -1257,9 +1314,8 @@ CONTRIBUTING QUESTS: {len(d['contributing_quests'])}
 PLAYER RANK: {rank_for_level(player['level'])['code']} LEVEL {player['level']}
 PLAYER STATS: {player['stats']}
 """
-    chat = (LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"strat-{player['id']}-{boss_key}",
-                    system_message=ARCHITECT_SYSTEM + "\nOutput format: 5-7 lines maximum. Deliver diagnosis, counter-pattern, then ONE concrete quest command with duration.")
-            .with_model("openai", "gpt-5.6-terra"))
+    chat = _llm_chat(ARCHITECT_SYSTEM + "\nOutput format: 5-7 lines maximum. Deliver diagnosis, counter-pattern, then ONE concrete quest command with duration.",
+                     f"strat-{player['id']}-{boss_key}")
     try:
         text = await _drain_llm(chat, "STRATEGIC UPLINK — deliver counter-strategy for this boss:\n" + ctx)
     except Exception as e:
@@ -1299,7 +1355,6 @@ async def weekly_review_data(player=Depends(current_player)):
 
 @api.post("/weekly-review/generate")
 async def weekly_review_generate(player=Depends(current_player)):
-    from emergentintegrations.llm.chat import LlmChat
     d = await weekly_review_data(player=player)
     ctx = f"""WEEKLY REVIEW REQUEST — {player['display_name']}
 XP EARNED (7d): {d['xp_earned']}
@@ -1311,9 +1366,8 @@ WEAKEST DOMAIN: {d['weakest_domain']}
 STREAK: {d['streak']} days
 STANDING PRIME OBJECTIVE: {d.get('prime_objective') or 'unset'}
 """
-    chat = (LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"weekly-{player['id']}",
-                    system_message=ARCHITECT_SYSTEM + "\nOutput exactly this structure, no extra prose:\n// SUMMARY\n(1-2 lines)\n// STRONGEST\n(1 line)\n// WEAKEST\n(1 line)\n// NEXT WEEK OBJECTIVE\n(a single concrete one-sentence objective)\n// FIRST COMMAND\n(a single actionable 5-15 minute micro-quest)")
-            .with_model("openai", "gpt-5.6-terra"))
+    chat = _llm_chat(ARCHITECT_SYSTEM + "\nOutput exactly this structure, no extra prose:\n// SUMMARY\n(1-2 lines)\n// STRONGEST\n(1 line)\n// WEAKEST\n(1 line)\n// NEXT WEEK OBJECTIVE\n(a single concrete one-sentence objective)\n// FIRST COMMAND\n(a single actionable 5-15 minute micro-quest)",
+                     f"weekly-{player['id']}")
     try:
         text = await _drain_llm(chat, ctx)
     except Exception as e:
