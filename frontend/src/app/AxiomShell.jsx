@@ -199,16 +199,65 @@ export default function AxiomShell() {
           </nav>
         </aside>
 
-        {/* Main — short, cheap fade/slide on route change instead of an
-            instant cut. Keyed by pathname so it re-triggers per navigation. */}
+        {/* Main — Monarch route transition: cyan scanline wipe + fade
+            with JetBrains Mono "SYSTEM LOADING..." flicker. Under 600ms total. */}
         <main className="col-span-12 lg:col-span-9 xl:col-span-10 min-h-[70vh]">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0, y: 8, filter: "blur(2px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, filter: "blur(1px)" }}
+              transition={{ duration: 0.30, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
+              className="relative"
             >
+              {/* Scanline wipe — sweeps top→bottom in 450ms */}
+              <motion.div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-30 overflow-hidden"
+                initial={{ opacity: 1 }}
+                animate={{ opacity: 0 }}
+                transition={{ duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
+                style={{ mixBlendMode: "screen" }}
+              >
+                <motion.div
+                  initial={{ y: "-40%" }}
+                  animate={{ y: "130%" }}
+                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute inset-x-0 h-[55vh]"
+                  style={{
+                    background:
+                      "linear-gradient(to bottom, transparent 0%, rgba(0,240,255,0.04) 22%, rgba(0,240,255,0.30) 47%, rgba(0,240,255,0.95) 50%, rgba(0,240,255,0.30) 53%, rgba(0,240,255,0.04) 78%, transparent 100%)",
+                    boxShadow: "0 0 40px rgba(0,240,255,0.55)",
+                  }}
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,240,255,0.06) 3px, transparent 4px)",
+                  }}
+                />
+              </motion.div>
+
+              {/* JetBrains Mono "SYSTEM LOADING..." with cyan glow flicker */}
+              <motion.div
+                aria-hidden
+                className="pointer-events-none absolute top-2 right-2 z-40"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 1, 0.25, 1, 0.55, 1, 0] }}
+                transition={{ duration: 0.52, times: [0, 0.1, 0.28, 0.45, 0.65, 0.82, 1], ease: "linear" }}
+                style={{
+                  fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace',
+                  fontSize: "10px",
+                  letterSpacing: "0.5em",
+                  color: "#00F0FF",
+                  textShadow: "0 0 8px #00F0FF, 0 0 14px rgba(0,240,255,0.55)",
+                }}
+              >
+                // SYSTEM LOADING...
+              </motion.div>
+
               <Outlet />
             </motion.div>
           </AnimatePresence>
